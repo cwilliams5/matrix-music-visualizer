@@ -17,9 +17,8 @@ and share. Let the built-in **auto-director** DJ the visuals for you — rotatin
 palettes and presets on the beat and on every drop — or take the wheel yourself. Drag
 in your own music and go.
 
-> **Try it live:** enable GitHub Pages on this repo →
-> `https://<you>.github.io/matrix-music-visualizer/` — or clone and run it locally
-> ([below](#run-it)).
+> **[▶ Try it live](https://cwilliams5.github.io/matrix-music-visualizer/)** — or
+> clone and run it locally ([below](#run-it)).
 
 **Under the hood**, it turns [Rezmason's canonical Matrix rain
 renderer](https://github.com/Rezmason/matrix) (MIT) into a full music visualizer:
