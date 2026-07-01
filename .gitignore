@@ -1,0 +1,16 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# Test / tooling artifacts
+.playwright-mcp/
+
+# NOTE: the demo tracks in music/*.mp3 are CC0 and ARE meant to ship — do not ignore them.

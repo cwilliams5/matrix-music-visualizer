@@ -1,0 +1,1151 @@
+/* matrix-music-viz — UI theme. Dark, phosphor-green, monospace. */
+:root {
+	--green: #29ff5b;
+	--green-dim: #16c244;
+	--green-deep: #0a7a2a;
+	--bg: #000;
+	--panel-bg: rgba(4, 14, 7, 0.86);
+	--panel-border: rgba(var(--accent-rgb), 0.25);
+	--text: #b7ffc6;
+	--text-dim: #5fbf78;
+	--shadow: 0 0 14px rgba(var(--accent-rgb), 0.35);
+	/* The accent as a bare "r, g, b" triplet — used by every rgba(var(--accent-rgb), a) literal so the
+	   whole theme (borders, hovers, dividers, scrollbars, glows) follows one source. F4 overrides it. */
+	--accent-rgb: 41, 255, 91;
+	/* Dark control surfaces (buttons / inputs). Green-tinted darks by default; F4 retints them. */
+	--control-bg: #07210f;
+	--input-bg: #051a0c;
+	/* The near-black "deep" surface (player bar + drop-hint), as an "r, g, b" triplet. F4 retints it. */
+	--deep-rgb: 2, 8, 4;
+}
+
+* {
+	box-sizing: border-box;
+}
+html,
+body {
+	margin: 0;
+	height: 100%;
+	width: 100%;
+	background: var(--bg);
+	overflow: hidden;
+	font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+	color: var(--text);
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+#stage {
+	position: fixed;
+	inset: 0;
+	background: #000;
+	z-index: 0;
+}
+#stage canvas {
+	width: 100vw;
+	height: 100vh;
+	display: block;
+	transition: opacity 0.45s ease;
+}
+
+/* Beat flash overlay */
+#beat-flash {
+	position: fixed;
+	inset: 0;
+	z-index: 1;
+	pointer-events: none;
+	background: radial-gradient(ellipse at center, rgba(var(--accent-rgb), 0.16), transparent 65%);
+	opacity: 0;
+	mix-blend-mode: screen;
+	will-change: opacity;
+}
+
+/* Debug overlay */
+#overlay {
+	position: fixed;
+	top: 14px;
+	left: 14px;
+	z-index: 6;
+	background: var(--panel-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 8px;
+	padding: 10px 12px;
+	font-size: 11px;
+	line-height: 1.7;
+	min-width: 168px;
+	backdrop-filter: blur(6px);
+	box-shadow: var(--shadow);
+}
+#overlay.hidden {
+	display: none;
+}
+.ov-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+}
+.ov-label {
+	color: var(--text-dim);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+.ov-val {
+	color: var(--green);
+	font-variant-numeric: tabular-nums;
+}
+.ov-meters {
+	display: flex;
+	gap: 5px;
+	margin: 8px 0 4px;
+	height: 64px;
+	align-items: flex-end;
+}
+.meter {
+	flex: 1;
+	display: flex;
+	flex-direction: column-reverse;
+	align-items: center;
+	height: 100%;
+	gap: 3px;
+}
+.meter i {
+	display: block;
+	width: 100%;
+	height: 0%;
+	background: linear-gradient(to top, var(--green-deep), var(--green));
+	border-radius: 2px 2px 0 0;
+	transition: height 0.04s linear;
+}
+.meter label {
+	font-size: 8px;
+	color: var(--text-dim);
+}
+
+/* Lightweight FPS HUD (toggle with `) — corner-anchored, sits just left of the ☰ toggle; the panel
+   (z-index 7) slides over it when open, so it reads against the rain. Follows the palette accent via --green. */
+#fps-hud {
+	position: fixed;
+	top: 16px;
+	right: 62px;
+	z-index: 6;
+	padding: 3px 9px;
+	border: 1px solid var(--panel-border);
+	border-radius: 6px;
+	background: var(--panel-bg);
+	color: var(--green);
+	font-family: inherit;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.04em;
+	text-shadow: 0 0 6px rgba(var(--accent-rgb), 0.5);
+	backdrop-filter: blur(4px);
+	pointer-events: none;
+	-webkit-user-select: none;
+	user-select: none;
+}
+#fps-hud::after {
+	content: " fps";
+	color: var(--text-dim);
+}
+
+/* Panel toggle */
+#panel-toggle {
+	position: fixed;
+	top: 14px;
+	right: 14px;
+	z-index: 8;
+	width: 38px;
+	height: 38px;
+	border-radius: 8px;
+	border: 1px solid var(--panel-border);
+	background: var(--panel-bg);
+	color: var(--green);
+	font-size: 18px;
+	cursor: pointer;
+	box-shadow: var(--shadow);
+}
+#panel-toggle:hover {
+	border-color: var(--green);
+}
+
+/* Control panel */
+#panel {
+	position: fixed;
+	top: 0;
+	right: 0;
+	bottom: 64px;
+	width: 320px;
+	z-index: 7;
+	background: var(--panel-bg);
+	border-left: 1px solid var(--panel-border);
+	backdrop-filter: blur(8px);
+	padding: 16px 16px 20px;
+	overflow-y: auto;
+	transition: transform 0.25s ease, opacity 0.3s ease;
+	box-shadow: -6px 0 30px rgba(0, 0, 0, 0.5);
+}
+#panel.collapsed {
+	transform: translateX(105%);
+}
+#panel header {
+	margin-bottom: 12px;
+}
+#panel .logo {
+	font-size: 20px;
+	font-weight: 700;
+	color: var(--green);
+	text-shadow: var(--shadow);
+	letter-spacing: 0.04em;
+}
+#panel .logo b {
+	color: var(--text);
+}
+#panel .sub {
+	display: block;
+	font-size: 10px;
+	color: var(--text-dim);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+#panel section {
+	border-top: 1px solid rgba(var(--accent-rgb), 0.13);
+	padding: 12px 0;
+}
+#panel h3 {
+	margin: 0 0 8px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.14em;
+	color: var(--green-dim);
+}
+/* F6 — collapsible panel sections: click a heading to fold it; the caret shows state. Persisted. */
+#panel section > h3 {
+	cursor: pointer;
+	user-select: none;
+	-webkit-user-select: none;
+}
+#panel section > h3::before {
+	content: "▾";
+	display: inline-block;
+	width: 1.1em;
+	font-size: 9px;
+	color: var(--text-dim);
+}
+#panel section.section-collapsed > h3 {
+	margin-bottom: 0;
+}
+#panel section.section-collapsed > h3::before {
+	content: "▸";
+}
+#panel section.section-collapsed > *:not(h3) {
+	display: none;
+}
+#panel h3 small {
+	color: var(--text-dim);
+	text-transform: none;
+	letter-spacing: 0;
+}
+select,
+input[type="range"] {
+	width: 100%;
+	accent-color: var(--green);
+}
+select {
+	background: var(--input-bg);
+	color: var(--text);
+	border: 1px solid var(--panel-border);
+	border-radius: 6px;
+	padding: 6px 8px;
+	font-family: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+/* F6 — hover/focus consistency: selects pick up the same border-highlight affordance as the buttons,
+   and every interactive control shows a visible keyboard-focus ring. */
+select:hover {
+	border-color: var(--green-dim);
+}
+select:focus-visible,
+.text-in:focus-visible,
+.mini:focus-visible,
+.seg-btn:focus-visible,
+.t-btn:focus-visible,
+.icon-btn:focus-visible,
+.ctx-item:focus-visible {
+	outline: 2px solid var(--green-dim);
+	outline-offset: 1px;
+}
+.pool-item:hover {
+	color: var(--text);
+}
+details > summary:hover {
+	color: var(--green);
+}
+.field {
+	display: block;
+	margin: 9px 0;
+	font-size: 11px;
+	color: var(--text-dim);
+}
+.field span {
+	display: block;
+	margin-bottom: 4px;
+}
+.field em {
+	color: var(--green);
+	font-style: normal;
+	font-variant-numeric: tabular-nums;
+}
+.switch {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 7px 0;
+	font-size: 12px;
+	cursor: pointer;
+}
+.switch input {
+	accent-color: var(--green);
+	width: 15px;
+	height: 15px;
+}
+.switch em {
+	font-style: normal;
+	color: var(--text-dim);
+	font-size: 9px;
+	letter-spacing: 0.02em;
+}
+.subhead {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	color: var(--green-dim);
+	margin: 9px 0 3px;
+}
+.subhead small {
+	color: var(--text-dim);
+	text-transform: none;
+	letter-spacing: 0;
+}
+
+/* Director advanced panel + segmented method control */
+details.advanced {
+	margin-top: 8px;
+}
+details.advanced > summary {
+	cursor: pointer;
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--green-dim);
+	padding: 4px 0;
+}
+.seg {
+	display: flex;
+	gap: 4px;
+}
+.seg-btn {
+	flex: 1;
+	background: var(--control-bg);
+	color: var(--text);
+	border: 1px solid var(--panel-border);
+	border-radius: 6px;
+	padding: 5px 4px;
+	font-family: inherit;
+	font-size: 11px;
+	cursor: pointer;
+}
+.seg-btn:hover {
+	border-color: var(--green);
+}
+.seg-btn.active {
+	background: var(--green);
+	border-color: var(--green);
+	color: #04140b;
+	font-weight: 700;
+	box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.45);
+}
+input[type="range"]:disabled {
+	opacity: 0.35;
+	cursor: default;
+}
+.pool-details > summary {
+	cursor: pointer;
+	font-size: 10px;
+	color: var(--green-dim);
+	padding: 3px 0;
+}
+.pool {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 10px;
+	padding: 4px 0 2px;
+}
+.pool-item {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 10px;
+	color: var(--text-dim);
+	cursor: pointer;
+}
+.pool-item input {
+	width: 12px;
+	height: 12px;
+	accent-color: var(--green);
+}
+
+/* Palette editor (brightness->color ramp stops) */
+.palette-editor {
+	border: 1px solid var(--panel-border);
+	border-radius: 6px;
+	padding: 8px;
+	margin: 6px 0;
+	background: rgba(var(--accent-rgb), 0.04);
+}
+.palette-editor .text-in {
+	width: 100%;
+	margin-bottom: 6px;
+}
+.stop-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 3px 0;
+}
+.stop-row input[type="color"] {
+	width: 32px;
+	height: 24px;
+	padding: 0;
+	border: 1px solid var(--panel-border);
+	border-radius: 4px;
+	background: none;
+	cursor: pointer;
+}
+.stop-row input[type="range"] {
+	flex: 1;
+}
+.stop-row .mini {
+	flex: 0 0 26px;
+	padding: 4px 0;
+}
+
+/* Effects mixer: one row per effect = checkbox + label + inline strength slider */
+.mix-group {
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--green-dim);
+	margin: 10px 0 4px;
+}
+.mix-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0;
+}
+.mix-row input[type="checkbox"] {
+	accent-color: var(--green);
+	width: 14px;
+	height: 14px;
+	flex: 0 0 auto;
+	cursor: pointer;
+}
+.mix-row .mix-label {
+	flex: 1 1 auto;
+	font-size: 11px;
+	color: var(--text);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	cursor: pointer;
+}
+.mix-row.off .mix-label {
+	color: var(--text-dim);
+}
+.mix-row input[type="range"] {
+	flex: 0 0 68px;
+	width: 68px;
+	accent-color: var(--green);
+}
+.mix-row input[type="range"]:disabled {
+	opacity: 0.25;
+}
+
+/* Preset controls */
+.preset-row {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+.preset-row select {
+	flex: 1;
+}
+.icon-btn {
+	background: var(--control-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 6px;
+	color: var(--text);
+	cursor: pointer;
+	width: 32px;
+	height: 30px;
+	font-size: 13px;
+	flex: 0 0 auto;
+}
+.icon-btn:hover {
+	border-color: #ff5b5b;
+	color: #ff8b8b;
+}
+.dirty-flag {
+	color: #ffcf5b;
+}
+.text-in {
+	flex: 1;
+	min-width: 0;
+	background: var(--input-bg);
+	color: var(--text);
+	border: 1px solid var(--panel-border);
+	border-radius: 6px;
+	padding: 5px 8px;
+	font-family: inherit;
+	font-size: 12px;
+}
+.mini.danger {
+	border-color: #ff5b5b;
+	color: #ff8b8b;
+}
+/* Save button shows the active preset name — ellipsize rather than overflow the row */
+#preset-save {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* Contextual mixer note (e.g. Spectrum Rain in 3D); collapses when empty */
+#mixer-note {
+	margin: 8px 0 0;
+	color: var(--green-dim);
+}
+#mixer-note:empty {
+	display: none;
+}
+
+/* Modal */
+#modal {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.6);
+	backdrop-filter: blur(4px);
+}
+.modal-box {
+	background: var(--panel-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 12px;
+	padding: 20px 22px;
+	max-width: 340px;
+	box-shadow: var(--shadow);
+}
+.modal-box p {
+	font-size: 13px;
+	color: var(--text);
+	line-height: 1.5;
+	margin: 0 0 16px;
+}
+.modal-btns {
+	display: flex;
+	gap: 10px;
+	justify-content: flex-end;
+}
+.row {
+	display: flex;
+	gap: 6px;
+	margin: 7px 0;
+}
+.mini {
+	flex: 1;
+	background: var(--control-bg);
+	color: var(--text);
+	border: 1px solid var(--panel-border);
+	border-radius: 6px;
+	padding: 6px 4px;
+	font-family: inherit;
+	font-size: 11px;
+	cursor: pointer;
+}
+.mini:hover {
+	border-color: var(--green);
+	color: var(--green);
+}
+/* per-preset driver editor (Advanced) */
+.drivers-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-top: 4px;
+}
+.drv-knob {
+	border: 1px solid rgba(var(--accent-rgb), 0.12);
+	border-radius: 6px;
+	padding: 5px 6px;
+}
+.drv-head {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	margin-bottom: 4px;
+}
+.drv-name {
+	flex: 1;
+	font-size: 11px;
+	color: var(--green-dim);
+}
+.drv-op {
+	color: var(--text-dim);
+}
+.drv-terms {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+}
+.drv-feat {
+	flex: 0 1 auto;
+	font-size: 10px;
+	padding: 2px 4px;
+}
+.drv-num {
+	width: 48px;
+	background: var(--control-bg);
+	color: var(--text);
+	border: 1px solid var(--panel-border);
+	border-radius: 4px;
+	font-size: 10px;
+	padding: 2px 4px;
+}
+.drv-rm {
+	flex: 0 0 22px;
+	min-width: 22px;
+	padding: 2px 0;
+}
+.drv-add {
+	flex: 0 0 auto;
+	padding: 2px 8px;
+}
+/* right-click context menu */
+.context-menu {
+	position: fixed;
+	z-index: 50;
+	min-width: 190px;
+	background: var(--panel-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 8px;
+	padding: 4px;
+	box-shadow: var(--shadow);
+	backdrop-filter: blur(8px);
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+.context-menu.hidden {
+	display: none;
+}
+.ctx-item {
+	background: transparent;
+	border: none;
+	color: var(--text);
+	text-align: left;
+	padding: 6px 10px;
+	border-radius: 5px;
+	font-size: 12px;
+	font-family: inherit;
+	cursor: pointer;
+}
+.ctx-item:hover {
+	background: rgba(var(--accent-rgb), 0.12);
+	color: var(--green);
+}
+.ctx-sep {
+	height: 1px;
+	background: var(--panel-border);
+	margin: 3px 6px;
+}
+/* keyboard cheat-sheet overlay */
+.cheatsheet {
+	position: fixed;
+	z-index: 60;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: var(--panel-bg);
+	border: 1px solid var(--green-dim);
+	border-radius: 12px;
+	padding: 18px 22px;
+	box-shadow: var(--shadow);
+	backdrop-filter: blur(10px);
+	max-width: 90vw;
+}
+.cheatsheet.hidden {
+	display: none;
+}
+.cheatsheet h3 {
+	margin: 0 0 12px;
+	color: var(--green);
+	font-size: 13px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+.cheat-rows {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 6px 14px;
+	align-items: center;
+}
+.cheat-rows kbd {
+	background: var(--control-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 5px;
+	padding: 2px 8px;
+	font-family: inherit;
+	font-size: 11px;
+	color: var(--green);
+	text-align: center;
+	white-space: nowrap;
+}
+.cheat-rows span {
+	font-size: 12px;
+	color: var(--text);
+}
+.hint {
+	font-size: 10px;
+	color: var(--text-dim);
+	line-height: 1.5;
+}
+.hint a {
+	color: var(--green-dim);
+}
+#panel footer {
+	border-top: 1px solid rgba(var(--accent-rgb), 0.13);
+	padding-top: 10px;
+	margin-top: 4px;
+}
+
+/* Playlist drawer */
+#playlist {
+	position: fixed;
+	left: 14px;
+	bottom: 78px;
+	width: 360px;
+	max-height: 50vh;
+	z-index: 7;
+	background: var(--panel-bg);
+	border: 1px solid var(--panel-border);
+	border-radius: 10px;
+	backdrop-filter: blur(8px);
+	display: flex;
+	flex-direction: column;
+	box-shadow: var(--shadow);
+	overflow: hidden;
+}
+#playlist.hidden {
+	display: none;
+}
+/* close button: a small square icon, not a stretched .mini (overrides .mini flex:1) */
+#playlist-close {
+	flex: 0 0 auto;
+	width: 26px;
+	height: 26px;
+	padding: 0;
+	line-height: 1;
+	font-size: 13px;
+}
+/* themed thin scrollbars for the scroll regions */
+#panel,
+#playlist-items {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(var(--accent-rgb), 0.3) transparent;
+}
+#panel::-webkit-scrollbar,
+#playlist-items::-webkit-scrollbar {
+	width: 8px;
+}
+#panel::-webkit-scrollbar-track,
+#playlist-items::-webkit-scrollbar-track {
+	background: transparent;
+}
+#panel::-webkit-scrollbar-thumb,
+#playlist-items::-webkit-scrollbar-thumb {
+	background: rgba(var(--accent-rgb), 0.25);
+	border-radius: 4px;
+}
+#panel::-webkit-scrollbar-thumb:hover,
+#playlist-items::-webkit-scrollbar-thumb:hover {
+	background: rgba(var(--accent-rgb), 0.45);
+}
+#playlist header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--panel-border);
+}
+#playlist h3 {
+	margin: 0;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	color: var(--green-dim);
+}
+#playlist-items {
+	list-style: none;
+	margin: 0;
+	padding: 6px;
+	overflow-y: auto;
+	flex: 1;
+}
+#playlist-items li {
+	padding: 7px 10px;
+	border-radius: 6px;
+	font-size: 12px;
+	cursor: pointer;
+	display: flex;
+	justify-content: space-between;
+	gap: 10px;
+	color: var(--text);
+	position: relative;
+}
+#playlist-items li:hover {
+	background: rgba(var(--accent-rgb), 0.08);
+}
+#playlist-items li.active {
+	background: rgba(var(--accent-rgb), 0.16);
+	color: var(--green);
+}
+/* reorder feedback: the dragged row dims; a glowing accent line marks the drop insertion point */
+#playlist-items li.dragging {
+	opacity: 0.4;
+}
+#playlist-items li.drop-above::before,
+#playlist-items li.drop-below::after {
+	content: "";
+	position: absolute;
+	left: 6px;
+	right: 6px;
+	height: 2px;
+	background: var(--green);
+	box-shadow: 0 0 6px var(--green);
+	border-radius: 2px;
+	pointer-events: none;
+}
+#playlist-items li.drop-above::before {
+	top: -3px;
+}
+#playlist-items li.drop-below::after {
+	bottom: -3px;
+}
+#playlist-items li .pl-genre {
+	color: var(--text-dim);
+	font-size: 10px;
+}
+.pl-rm {
+	margin-left: auto;
+	flex: 0 0 auto;
+	background: transparent;
+	border: none;
+	color: var(--text-dim);
+	cursor: pointer;
+	font-size: 11px;
+	padding: 0 2px;
+	opacity: 0;
+}
+#playlist-items li:hover .pl-rm {
+	opacity: 0.6;
+}
+.pl-rm:hover {
+	color: #ff8b8b;
+	opacity: 1;
+}
+.pl-count {
+	font-size: 10px;
+	color: var(--text-dim);
+}
+#playlist .row {
+	padding: 8px;
+	margin: 0;
+	border-top: 1px solid var(--panel-border);
+}
+
+/* Player bar */
+#player {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 64px;
+	z-index: 7;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 0 16px;
+	background: linear-gradient(to top, rgba(var(--deep-rgb), 0.97), rgba(var(--deep-rgb), 0.8));
+	border-top: 1px solid var(--panel-border);
+	backdrop-filter: blur(8px);
+}
+.t-btn {
+	background: none;
+	border: 1px solid transparent;
+	color: var(--text);
+	width: 38px;
+	height: 38px;
+	border-radius: 8px;
+	cursor: pointer;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	position: relative;
+	transition: color 0.12s ease, transform 0.06s ease;
+}
+.t-btn svg {
+	width: 19px;
+	height: 19px;
+	display: block;
+}
+.t-btn:hover {
+	color: var(--green);
+	border-color: var(--panel-border);
+}
+.t-btn:active {
+	transform: scale(0.9);
+}
+.t-btn.play {
+	color: var(--green);
+}
+.t-btn.play svg {
+	width: 26px;
+	height: 26px;
+}
+/* mode toggles (shuffle / repeat): dim when off, accent + a glowing dot when on — unmistakable state */
+.mode-btn {
+	color: var(--text-dim);
+}
+.mode-btn:hover {
+	color: var(--green);
+}
+.mode-btn.active {
+	color: var(--green);
+}
+.mode-btn.active::after {
+	content: "";
+	position: absolute;
+	bottom: 5px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: var(--green);
+	box-shadow: 0 0 5px var(--green);
+}
+#player .track {
+	width: 220px;
+	min-width: 140px;
+	overflow: hidden;
+}
+#track-title {
+	font-size: 13px;
+	color: var(--green);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.track-sub {
+	font-size: 10px;
+	color: var(--text-dim);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.transport {
+	display: flex;
+	gap: 2px;
+}
+/* mode toggles live between the seekbar and the volume (standard media-player placement) */
+.modes {
+	display: flex;
+	gap: 2px;
+	flex: 0 0 auto;
+}
+.scrub {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 11px;
+	color: var(--text-dim);
+	font-variant-numeric: tabular-nums;
+}
+#seek {
+	flex: 1;
+}
+.vol {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	width: 130px;
+}
+.vol-ico {
+	width: 32px;
+	height: 32px;
+	flex: 0 0 auto;
+	color: var(--text-dim);
+}
+.vol-ico svg {
+	width: 18px;
+	height: 18px;
+}
+.vol-ico:hover {
+	color: var(--green);
+}
+
+/* Drop hint */
+#drop-hint {
+	position: fixed;
+	inset: 0;
+	z-index: 9;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	background: rgba(var(--deep-rgb), 0.78);
+	backdrop-filter: blur(3px);
+}
+#drop-hint.show {
+	display: flex;
+}
+#drop-hint div {
+	border: 2px dashed var(--green);
+	border-radius: 16px;
+	padding: 40px 70px;
+	font-size: 20px;
+	color: var(--green);
+	text-shadow: var(--shadow);
+}
+
+/* ---- Immersive fullscreen auto-hide (app/fullscreen.js) ----
+   While fullscreen + idle, body gets .chrome-hidden: the chrome (hamburger, now-playing bar, playlist,
+   expanded panel, debug overlay) fades out and the cursor hides, leaving only the rain (+ the FPS HUD,
+   which is NOT in this list, and the ? cheat-sheet, which is summoned on demand). Movement removes the
+   class. Outside fullscreen the class is never set, so windowed UI is unaffected. */
+#panel-toggle,
+#player,
+#playlist,
+#overlay {
+	transition: opacity 0.3s ease;
+}
+body.chrome-hidden #panel-toggle,
+body.chrome-hidden #player,
+body.chrome-hidden #playlist,
+body.chrome-hidden #overlay,
+body.chrome-hidden #panel:not(.collapsed) {
+	opacity: 0;
+	pointer-events: none;
+}
+body.chrome-hidden {
+	cursor: none;
+}
+
+.hidden {
+	display: none !important;
+}
+
+/* ---- Song-title splash (plan-transitions) ---------------------------------
+   A centered overlay that fades in, holds, then dissolves outward — "becomes part of the viz".
+   Tinted to the active palette's bright head colour by JS (else the phosphor green). Sits above the
+   rain (z 5) but below the panel/overlay so the UI stays usable; never intercepts pointer events. */
+#viz-title {
+	position: fixed;
+	inset: 0;
+	z-index: 5;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.35em;
+	pointer-events: none;
+	opacity: 0;
+	text-align: center;
+	color: var(--green);
+	padding: 0 8vw;
+	will-change: opacity, transform, filter;
+}
+#viz-title .vt-main {
+	font-size: clamp(28px, 6vw, 76px);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	line-height: 1.05;
+	text-shadow: 0 0 18px currentColor, 0 0 42px rgba(0, 0, 0, 0.5);
+	word-break: break-word;
+	max-width: 100%;
+}
+#viz-title .vt-sub {
+	font-size: clamp(13px, 1.8vw, 22px);
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+	opacity: 0.82;
+	text-shadow: 0 0 12px currentColor;
+}
+#viz-title.show {
+	animation: vtShow var(--vt-dur, 3s) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes vtShow {
+	0% {
+		opacity: 0;
+		transform: translateY(10px) scale(0.985);
+		filter: blur(7px);
+	}
+	11% {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+		filter: blur(0);
+	}
+	68% {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+		filter: blur(0);
+	}
+	100% {
+		opacity: 0;
+		transform: translateY(-6px) scale(1.07);
+		filter: blur(5px);
+		letter-spacing: 0.34em;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	#viz-title.show {
+		animation-timing-function: ease;
+	}
+}
+
+/* Embedded (pure viz): the host owns playback — hide matrix's transport bar + playlist so the
+   host's chrome drives it. Toggled by html.matrixviz-embedded (set in embed.js on import). */
+html.matrixviz-embedded #player,
+html.matrixviz-embedded #playlist {
+	display: none !important;
+}
+
+/* Fatal message shown in the stage when the visualizer can't run (e.g. no WebGL). */
+.fatal-msg {
+	position: absolute;
+	inset: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem;
+	text-align: center;
+	color: var(--green, #29ff5b);
+	background: #000;
+	font: 500 1rem/1.6 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}

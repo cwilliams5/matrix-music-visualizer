@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Matrix Music Visualizer</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+		<link rel="stylesheet" href="app/style.css" />
+	</head>
+	<body>
+		<!-- The rain canvas is mounted here by boot.js -->
+		<div id="stage"></div>
+
+		<!-- Full-screen flash overlay, pulsed on beats -->
+		<div id="beat-flash"></div>
+
+		<!-- Song-title splash (plan-transitions): fades in / holds / dissolves on track change or T -->
+		<div id="viz-title"><div class="vt-main"></div><div class="vt-sub"></div></div>
+
+		<!-- Lightweight FPS HUD (toggle with `) — reuses boot's per-frame fps calc, no second rAF -->
+		<div id="fps-hud" class="hidden">–</div>
+
+		<!-- Drag-and-drop catcher -->
+		<div id="drop-hint"><div>drop audio files to play</div></div>
+
+		<!-- Debug / feature overlay (toggle with D) -->
+		<div id="overlay" class="hidden">
+			<div class="ov-row"><span class="ov-label">fps</span><span id="fps-readout" class="ov-val">–</span></div>
+			<div class="ov-row"><span class="ov-label">bpm</span><span id="bpm-readout" class="ov-val">–</span></div>
+			<div class="ov-row"><span class="ov-label">mode</span><span id="mode-readout" class="ov-val">–</span></div>
+			<div class="ov-row"><span class="ov-label">preset</span><span id="preset-readout" class="ov-val">–</span></div>
+			<div class="ov-meters">
+				<div class="meter"><i id="m-bass"></i><label>bass</label></div>
+				<div class="meter"><i id="m-lowMid"></i><label>lo-mid</label></div>
+				<div class="meter"><i id="m-mid"></i><label>mid</label></div>
+				<div class="meter"><i id="m-highMid"></i><label>hi-mid</label></div>
+				<div class="meter"><i id="m-treble"></i><label>treble</label></div>
+				<div class="meter"><i id="m-level"></i><label>level</label></div>
+			</div>
+			<div class="ov-row"><span class="ov-label">centroid</span><span id="centroid-readout" class="ov-val">–</span></div>
+		</div>
+
+		<!-- Control panel -->
+		<button id="panel-toggle" title="Toggle controls (Tab)">☰</button>
+		<aside id="panel">
+			<header><span class="logo">matrix<b>·</b>music</span><span class="sub">music-reactive digital rain</span></header>
+
+			<section>
+				<h3>Mode</h3>
+				<select id="mode-select" title="The rain renderer / scene (Classic, 3D, Megacity, …)"></select>
+				<div class="row">
+					<button id="mode-prev" class="mini" title="Previous mode">‹ prev</button>
+					<button id="mode-next" class="mini" title="Next mode">next ›</button>
+					<button id="mode-random" class="mini" title="Jump to a random mode">random</button>
+				</div>
+				<label class="field"><span>Palette</span>
+					<div class="preset-row">
+						<select id="effect-select" title="Colour scheme — maps glyph brightness to colour (green default, Fire, Ice, …)"></select>
+						<button id="palette-delete" class="icon-btn" title="Delete this palette">🗑</button>
+					</div></label>
+				<div class="row">
+					<button id="palette-prev" class="mini" title="Previous palette">‹ prev</button>
+					<button id="palette-next" class="mini" title="Next palette">next ›</button>
+					<button id="palette-random" class="mini" title="Jump to a random palette">random</button>
+						<button id="palette-dice" class="mini" title="Generate a brand-new random palette">🎲</button>
+				</div>
+				<label class="switch" title="When generating a random palette (🎲), skip the colour-harmony bias and roll a fresh random hue per stop"><input type="checkbox" id="palette-chaos" /> <span>Pure chaos <small>(🎲 skips color harmony)</small></span></label>
+				<label class="switch" title="Tint the control panel + accents with a colour from the active palette instead of the default green. Text/borders stay legible (clamped). Off by default."><input type="checkbox" id="ui-follow-palette" /> <span>UI follows palette <small>(themes the whole UI)</small></span></label>
+				<div class="row">
+					<button id="palette-new" class="mini" title="Create a new palette">+ New</button>
+					<button id="palette-edit" class="mini" title="Edit the selected palette (built-ins fork into a copy)">✎ Edit</button>
+					<button id="palette-restore" class="mini" title="Restore built-in palettes — your customs are kept">↺ Defaults</button>
+				</div>
+				<div id="palette-editor" class="palette-editor" style="display: none">
+					<input type="text" id="palette-name" class="text-in" placeholder="Palette name" maxlength="40" title="Name for this palette" />
+					<div id="palette-stops"></div>
+					<div class="row">
+						<button id="palette-add-stop" class="mini" title="Add a colour stop to the brightness→colour ramp">+ stop</button>
+						<button id="palette-save" class="mini" title="Save this palette">Save</button>
+						<button id="palette-cancel" class="mini" title="Discard changes and close the editor">Cancel</button>
+					</div>
+					<p class="hint" id="palette-hint">Stops map glyph brightness → color (left = dim, right = bright heads).</p>
+				</div>
+			</section>
+
+			<section>
+				<h3>Reactivity</h3>
+				<label class="switch" title="Master switch — drive the rain from the live audio analysis. Off = calm vanilla matrix."><input type="checkbox" id="reactive-toggle" /> <span>React to music</span></label>
+				<label class="field" title="Master multiplier over the whole effects mixer — how strongly the music moves the rain"><span>Intensity <em id="intensity-val">1.0</em></span>
+					<input type="range" id="intensity" min="0" max="2" step="0.05" value="1" title="Master reactivity strength (0–2)" /></label>
+				<label class="field" title="The reactivity preset — a saved mixer + character. Loading one sets the whole mixer; • unsaved marks pending edits."><span>Preset <em id="preset-dirty" class="dirty-flag"></em></span>
+					<div class="preset-row">
+						<select id="preset-select" title="The active reactivity preset"></select>
+						<button id="preset-delete" class="icon-btn" title="Delete this preset">🗑</button>
+					</div></label>
+				<div class="row">
+					<button id="preset-prev" class="mini" title="Previous preset">‹ prev</button>
+					<button id="preset-next" class="mini" title="Next preset">next ›</button>
+					<button id="preset-random" class="mini" title="Jump to a random preset">random</button>
+						<button id="preset-dice" class="mini" title="Generate a brand-new random preset">🎲</button>
+				</div>
+				<div class="row">
+					<button id="preset-save" class="mini" title="Overwrite the current preset">Save</button>
+				</div>
+				<div class="row">
+					<button id="preset-saveas" class="mini" title="Save the current settings as a new named preset">Save as new…</button>
+					<button id="preset-duplicate" class="mini" title="Fork this preset into a new editable copy">⎘ Duplicate</button>
+				</div>
+				<div class="row" id="saveas-row" style="display: none">
+					<input type="text" id="saveas-name" class="text-in" placeholder="New preset name" maxlength="40" title="Name for the new preset" />
+					<button id="saveas-ok" class="mini" title="Create the preset">✓</button>
+					<button id="saveas-cancel" class="mini" title="Cancel">✕</button>
+				</div>
+				<div class="row">
+					<button id="preset-restore" class="mini" title="Re-add deleted built-in presets and reset edited ones to factory; your custom presets are kept">↺ Restore default presets</button>
+				</div>
+				<details class="advanced" id="preset-advanced">
+					<summary>Advanced — shape (shock + hue)</summary>
+					<label class="field" title="Where on screen the beat shockwave ring starts from"><span>Shockwave origin</span>
+						<select id="adv-shock-origin" title="Where the beat shockwave ring originates (center / random / bottom / top)">
+							<option value="center">Center</option>
+							<option value="random">Random</option>
+							<option value="bass">Bottom (bass)</option>
+							<option value="top">Top</option>
+						</select></label>
+					<label class="field"><span>Shock speed <em id="adv-shock-speed-val">0.90</em></span>
+						<input type="range" id="adv-shock-speed" min="0.2" max="2" step="0.05" value="0.9" title="How fast the shockwave ring expands" /></label>
+					<label class="field"><span>Shock decay <em id="adv-shock-decay-val">0.45</em></span>
+						<input type="range" id="adv-shock-decay" min="0.1" max="1.5" step="0.05" value="0.45" title="How quickly the shockwave fades" /></label>
+					<label class="field"><span>Shock gain <em id="adv-shock-gain-val">0.80</em></span>
+						<input type="range" id="adv-shock-gain" min="0" max="2" step="0.05" value="0.8" title="Shockwave intensity" /></label>
+					<label class="field" title="What drives the Spectral hue shift for this preset"><span>Hue mode</span>
+						<select id="adv-hue-mode" title="What drives the hue rotation: none (slow drift) / centroid (brightness) / drift / beat / bass">
+							<option value="none">None</option>
+							<option value="centroid">Centroid (brightness)</option>
+							<option value="drift">Drift (slow cycle)</option>
+							<option value="beat">Beat (flip on beat)</option>
+							<option value="bass">Bass</option>
+						</select></label>
+					<label class="field"><span>Hue rate <em id="adv-hue-rate-val">0.020</em></span>
+						<input type="range" id="adv-hue-rate" min="0" max="0.1" step="0.005" value="0.02" title="Drift speed (drift mode)" /></label>
+					<label class="field"><span>Hue spread <em id="adv-hue-spread-val">0.50</em></span>
+						<input type="range" id="adv-hue-spread" min="0" max="1" step="0.05" value="0.5" title="How far the hue swings" /></label>
+					<label class="field"><span>Hue bleed <em id="adv-hue-bleed-val">0.50</em></span>
+						<input type="range" id="adv-hue-bleed" min="0" max="1.5" step="0.05" value="0.5" title="Color bleed between glyphs" /></label>
+					<div class="subhead">Scene bindings <small>(on apply)</small></div>
+					<label class="field"><span>Switch to mode</span>
+						<select id="adv-jump-mode" title="On selecting this preset, switch to this mode (none = keep current)"></select></label>
+					<label class="field"><span>Switch to palette</span>
+						<select id="adv-jump-palette" title="On selecting this preset, switch to this palette (none = keep current)"></select></label>
+					<div class="subhead">Reactivity drivers <small>(feature → knob)</small></div>
+					<div id="preset-drivers" class="drivers-editor"></div>
+					<div class="subhead">Reactivity channels <small>(feature → physics)</small></div>
+					<div id="preset-channel-drivers" class="drivers-editor"></div>
+				</details>
+				<p class="hint" id="preset-desc"></p>
+			</section>
+
+			<section>
+				<h3>Effects mixer <small>(on/off + strength)</small></h3>
+				<div id="mixer"></div>
+				<p class="hint" id="mixer-note"></p>
+			</section>
+
+			<section>
+				<h3>Director</h3>
+				<label class="switch" title="Automatically rotate the mode, palette and/or preset over time and on musical drops (an AVS/Milkdrop-style auto-pilot)"><input type="checkbox" id="director-toggle" /> <span>Auto-switch modes/presets</span></label>
+				<label class="field" title="Seconds between timed automatic switches"><span>Every <em id="director-interval-val">30</em>s</span>
+					<input type="range" id="director-interval" min="5" max="120" step="1" value="30" title="Seconds between timed automatic switches" /></label>
+				<label class="switch" title="Also switch when the music drops or builds (a sudden rise in energy), not only on the timer"><input type="checkbox" id="director-ondrop" checked /> <span>Switch on big drops</span></label>
+					<label class="field" title="How easily a musical drop/build triggers a switch — higher = hair-trigger (small jumps), lower = only the biggest drops. Default 0.50."><span>Drop sensitivity <em id="director-dropsens-val">0.50</em></span>
+						<input type="range" id="director-dropsens" min="0" max="1" step="0.05" value="0.5" title="How easily a musical drop/build triggers a switch — higher = hair-trigger" /></label>
+					<label class="switch" title="Also switch the look whenever the track changes"><input type="checkbox" id="director-ontrackchange" checked /> <span>Switch on track change</span></label>
+				<label class="switch" title="Include the rain mode in the rotation"><input type="checkbox" id="director-modes" checked /> <span>Rotate modes</span></label>
+				<label class="switch" title="Include the reactivity preset in the rotation"><input type="checkbox" id="director-presets" checked /> <span>Rotate presets</span></label>
+				<label class="switch" title="Include the colour palette in the rotation"><input type="checkbox" id="director-palettes" checked /> <span>Rotate palette</span></label>
+				<details class="advanced">
+					<summary title="Fine-tune how the director chooses what to switch to">Advanced</summary>
+					<label class="field" title="How the next value is chosen once an axis changes"><span>Change method</span>
+						<div class="seg">
+							<button type="button" class="seg-btn" data-director-method="random" title="Pick any value at random (may repeat sooner)">Random</button>
+							<button type="button" class="seg-btn" data-director-method="shuffle" title="Shuffle-bag order — every value is visited once before any repeats">Shuffle</button>
+							<button type="button" class="seg-btn" data-director-method="cycle" title="Step through the list in order">Cycle</button>
+						</div></label>
+					<div class="subhead">How often each changes</div>
+					<label class="field" title="Chance the mode changes on a given switch (0–100%)"><span>Modes <em id="director-freq-modes-val">55%</em></span>
+						<input type="range" id="director-freq-modes" min="10" max="100" step="5" value="55" title="Chance the mode changes on a given switch" /></label>
+					<label class="field" title="Chance the preset changes on a given switch (0–100%)"><span>Presets <em id="director-freq-presets-val">100%</em></span>
+						<input type="range" id="director-freq-presets" min="10" max="100" step="5" value="100" title="Chance the preset changes on a given switch" /></label>
+					<label class="field" title="Chance the palette changes on a given switch (0–100%)"><span>Palette <em id="director-freq-palettes-val">50%</em></span>
+						<input type="range" id="director-freq-palettes" min="10" max="100" step="5" value="50" title="Chance the palette changes on a given switch" /></label>
+					<label class="switch" title="If a switch rolled no changes, force the highest-priority enabled axis to change anyway (never a no-op switch)"><input type="checkbox" id="director-guarantee" checked /> <span>Always change something</span></label>
+						<label class="switch" title="When the director picks a preset, let that preset's own scene binding choose the mode (otherwise the director owns the mode axis)"><input type="checkbox" id="director-usepreset-mode" /> <span>Presets set the mode <small>(else director picks it)</small></span></label>
+						<label class="switch" title="When the director picks a preset, let that preset's own scene binding choose the palette (otherwise the director owns the palette axis)"><input type="checkbox" id="director-usepreset-palette" /> <span>Presets set the palette</span></label>
+					<details class="pool-details">
+						<summary title="Tick which modes the director is allowed to switch to">Modes in rotation</summary>
+						<div class="pool" id="director-mode-pool"></div>
+					</details>
+					<details class="pool-details">
+						<summary title="Tick which palettes the director is allowed to switch to">Palettes in rotation</summary>
+						<div class="pool" id="director-palette-pool"></div>
+					</details>
+					<details class="pool-details">
+						<summary title="Tick which presets the director is allowed to switch to (🎲 Random is a fresh-roll wildcard, off by default)">Presets in rotation <small>(🎲 = wildcard, off by default)</small></summary>
+						<div class="pool" id="director-preset-pool"></div>
+					</details>
+				</details>
+			</section>
+
+			<section>
+				<h3>Transitions <small>(blends &amp; titles)</small></h3>
+				<label class="field" title="When a change blends instead of hard-cutting. Director-only keeps manual changes snappy and makes the auto-pilot feel premium."><span>Transitions</span>
+					<select id="trans-when" title="Always = every change blends · Director-only = only the director's auto-switches blend · Off = always hard-cut">
+						<option value="always">Always</option>
+						<option value="director">Director-only</option>
+						<option value="off">Off</option>
+					</select></label>
+				<label class="field" title="How long a transition takes"><span>Length <em id="trans-length-val">1.5s</em></span>
+					<input type="range" id="trans-length" min="0.2" max="10" step="0.1" value="1.5" title="Transition length (0.2–10s)" /></label>
+				<label class="field" title="Simple = linear · Complex = eased curve · Random = roll the curve + length each time"><span>Type</span>
+					<select id="trans-type" title="Transition character">
+						<option value="simple">Simple</option>
+						<option value="complex">Complex</option>
+						<option value="random">Random</option>
+					</select></label>
+				<label class="field" id="trans-easing-field" title="The eased curve (Complex type)"><span>Easing</span>
+					<select id="trans-easing" title="Easing curve">
+						<option value="linear">Linear</option>
+						<option value="smooth">Smooth</option>
+						<option value="smoother">Smoother</option>
+						<option value="easeOut">Ease-out</option>
+						<option value="easeIn">Ease-in</option>
+					</select></label>
+				<label class="switch" title="Crossfade the reactivity PARAMETERS on a preset change (same mode) — both presets' rules are partly live mid-blend"><input type="checkbox" id="trans-blend-preset" checked /> <span>Blend presets</span></label>
+				<label class="switch" title="Morph the colour gradient on a palette change between two ramp palettes (same mode)"><input type="checkbox" id="trans-blend-palette" checked /> <span>Blend palettes</span></label>
+				<label class="switch" title="Crossfade two rendered pipelines on a mode change (or a palette change across pass types) — ~2× GPU for the transition window"><input type="checkbox" id="trans-crossfade-mode" checked /> <span>Crossfade modes</span></label>
+				<div class="subhead">Song title <small>(on track change / T)</small></div>
+				<label class="field" title="How the song title appears. Overlay = a palette-tinted text overlay. The Glyph effects burn the title into the rain itself — Mask: lights the glyphs in place, then dims · Hold and Rain: holds, then the lit glyphs fall as rain · Fall: a rigid title falls through the stage · Random: one of the three, chosen per title."><span>Title effect</span>
+					<select id="title-effect" title="How the song title appears">
+						<option value="normal">Overlay</option>
+						<option value="grandom">Glyph - Random</option>
+						<option value="glyph">Glyph - Mask</option>
+						<option value="drop">Glyph - Hold and Rain</option>
+						<option value="fall">Glyph - Fall</option>
+						<option value="off">Off</option>
+					</select></label>
+				<p class="hint">Glyph effects fall back to <b>Mask</b> in 3D / non-grid scenes for visibility.</p>
+				<label class="switch" title="Show the song title automatically when the track changes"><input type="checkbox" id="title-auto" checked /> <span>Show on track change</span></label>
+				<label class="field" title="How long the title holds before dissolving"><span>Title hold <em id="title-duration-val">3.0s</em></span>
+					<input type="range" id="title-duration" min="1" max="10" step="0.5" value="3" title="Title duration (1–10s)" /></label>
+				<div class="row">
+					<button id="title-test" class="mini" title="Preview the song-title splash (also the T key)">Show title now</button>
+				</div>
+			</section>
+
+			<section>
+				<h3>Backup <small>(all settings)</small></h3>
+				<p class="hint">Save or restore <b>everything</b> as one file — presets, palettes, director, the current look, and player preferences. Your music (loaded tracks &amp; playback position) is never included.</p>
+				<div class="row">
+					<button id="preset-export" class="mini" title="Save all settings (presets, palettes, director, current look, player prefs) to a backup file">⤓ Export all settings</button>
+					<button id="preset-import" class="mini" title="Load all settings from a backup file — replaces your current settings and reloads the page">⤒ Import all settings</button>
+				</div>
+				<input type="file" id="preset-import-file" accept="application/json,.json" hidden />
+			</section>
+
+			<footer>
+				<span class="hint">Press <b>?</b> for keyboard shortcuts</span>
+			</footer>
+		</aside>
+
+		<!-- Playlist drawer -->
+		<aside id="playlist" class="hidden">
+			<header><h3>Playlist</h3><span id="playlist-count" class="pl-count"></span><button id="playlist-close" class="mini" title="Close playlist">✕</button></header>
+			<ul id="playlist-items"></ul>
+			<div class="row">
+				<button id="add-files" class="mini" title="Add audio files to the playlist">+ add files</button>
+				<button id="shuffle-toggle" class="mini" title="Toggle shuffle">shuffle: off</button>
+			</div>
+			<input type="file" id="file-input" accept="audio/*" multiple hidden />
+		</aside>
+
+		<!-- Player transport bar (icons injected by player.js from app/icons.js) -->
+		<footer id="player">
+			<button id="playlist-btn" class="t-btn" title="Playlist"></button>
+			<div class="track">
+				<div id="track-title">— no track —</div>
+				<div id="track-sub" class="track-sub">load a track or drop a file</div>
+			</div>
+			<div class="transport">
+				<button id="prev-btn" class="t-btn" title="Previous ([)"></button>
+				<button id="play-btn" class="t-btn play" title="Play/Pause (Space)"></button>
+				<button id="next-btn" class="t-btn" title="Next (])"></button>
+			</div>
+			<div class="scrub">
+				<span id="time-cur">0:00</span>
+				<input type="range" id="seek" min="0" max="1000" step="1" value="0" title="Seek" />
+				<span id="time-dur">0:00</span>
+			</div>
+			<div class="modes">
+				<button id="shuffle-btn" class="t-btn mode-btn" title="Shuffle (off)"></button>
+				<button id="repeat-btn" class="t-btn mode-btn" title="Repeat (off)"></button>
+			</div>
+			<div class="vol">
+				<button id="vol-ico" class="t-btn vol-ico" title="Mute (M)"></button>
+				<input type="range" id="volume" min="0" max="1" step="0.01" value="1" title="Volume" />
+			</div>
+		</footer>
+
+		<!-- Confirmation modal -->
+		<div id="modal" class="hidden">
+			<div class="modal-box">
+				<p id="modal-msg"></p>
+				<div class="modal-btns">
+					<button id="modal-cancel" class="mini" title="Cancel">Cancel</button>
+					<button id="modal-ok" class="mini danger" title="Confirm">Confirm</button>
+				</div>
+			</div>
+		</div>
+
+		<audio id="audio" crossorigin="anonymous"></audio>
+		<!-- Dev/reference embedded-host harness. Loads ONLY with ?embed-mock (examples/embed-mock.js), so
+		     the standalone page ships no harness code. document.write keeps it synchronous, before the boot
+		     module — which is when embed.js reads window.matrixVizHost. -->
+		<script>
+			if (location.search.indexOf("embed-mock") >= 0) document.write('<script src="examples/embed-mock.js"><\/script>');
+		</script>
+		<script type="module" src="app/boot.js"></script>
+	</body>
+</html>
